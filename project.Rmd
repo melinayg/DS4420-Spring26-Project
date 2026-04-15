@@ -1,0 +1,166 @@
+---
+title: "DS4420 Project - Bayesian Model"
+author: "Arshia Mathur, Melina Yang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+# Bayesian Linear Regression - Coral Bleaching 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# upload packages
+library(brms)
+```
+
+```{r}
+# load in data
+coral <- read.csv("/Users/arshia.mathur/Downloads/global_bleaching_environmental.csv", stringsAsFactors = FALSE)
+head(coral)
+dim(coral)
+```
+```{r}
+# Data Cleaning
+# replace all "nd" with NA so R knows there's missing data
+coral[coral == "nd"] <- NA
+
+# extract 9 features + target feature (Percent_Bleaching) from MLP
+# coerce to numeric data
+
+features <- c("TSA", "TSA_DHW", "SSTA", "ClimSST",
+              "Windspeed", "Turbidity", "Cyclone_Frequency",
+              "Distance_to_Shore", "Depth_m", "Percent_Bleaching")
+
+coral_sub <- as.data.frame(lapply(coral[, features], as.numeric))
+
+# drop rows where Percent_Bleaching is NA 
+coral_sub <- coral_sub[!is.na(coral_sub$Percent_Bleaching), ]
+
+# drop rows with any NAs remaining in the 9 features
+coral_sub <- coral_sub[complete.cases(coral_sub), ]
+dim(coral_sub)
+summary(coral_sub$Percent_Bleaching)
+
+# standardize 9 features using same preprocessing as the MLP
+feature_cols <- c("TSA", "TSA_DHW", "SSTA", "ClimSST",
+                  "Windspeed", "Turbidity", "Cyclone_Frequency",
+                  "Distance_to_Shore", "Depth_m")
+coral_scaled <- coral_sub
+coral_scaled[, feature_cols] <- scale(coral_sub[, feature_cols])
+head(coral_scaled)
+```
+```{r}
+# train/test split: 70% train, 30% test
+set.seed(42)
+n <- nrow(coral_scaled)
+train_idx <- sample(1:n, size = floor(0.70 * n))
+train_data <- coral_scaled[train_idx, ]
+test_data  <- coral_scaled[-train_idx, ]
+ 
+# subsample training data (data is too large) to 5000 rows
+set.seed(42)
+train_sample <- train_data[sample(nrow(train_data), 5000), ]
+
+# check what default priors look like first
+default_prior(Percent_Bleaching ~ TSA + TSA_DHW + SSTA + ClimSST +
+Windspeed + Turbidity + Cyclone_Frequency + Distance_to_Shore + Depth_m, data = train_sample, family = gaussian)
+```
+```{r}
+# manual priors; student_t on intercept (fatter tails given the skew in Percent_Bleaching),
+# normal(0, 10) on slopes; features are standardized and bleaching is 0-100 so a coefficient of 10 would mean a 1 SD change in a stressor shifts bleaching by 10 percentage points,
+manual_prior <- c(prior(student_t(3, 0, 10), class = "Intercept"),
+                  prior(normal(0, 10), class = 'b', coef = 'TSA'),
+                  prior(normal(0, 10), class = 'b', coef = 'TSA_DHW'),
+                  prior(normal(0, 10), class = 'b', coef = 'SSTA'),
+                  prior(normal(0, 10), class = 'b', coef = 'ClimSST'),
+                  prior(normal(0, 10), class = 'b', coef = 'Windspeed'),
+                  prior(normal(0, 10), class = 'b', coef = 'Turbidity'),
+                  prior(normal(0, 10), class = 'b', coef = 'Cyclone_Frequency'),
+                  prior(normal(0, 10), class = 'b', coef = 'Distance_to_Shore'),
+                  prior(normal(0, 10), class = 'b', coef = 'Depth_m'))
+```
+
+```{r}
+# fit the Bayesian linear regression
+# gaussian() since Percent_Bleaching is a continuous outcome
+coral_brm <- brm(Percent_Bleaching ~ TSA + TSA_DHW + SSTA + ClimSST +
+                   Windspeed + Turbidity + Cyclone_Frequency +
+                   Distance_to_Shore + Depth_m,
+                 family = gaussian(),
+                 data = train_sample,
+                 prior = manual_prior,
+                 chains = 4,
+                 cores = getOption("mc.cores", 4),
+                 iter = 2000,
+                 warmup = 1000,
+                 thin = 2,
+                 seed = 42)
+```
+
+```{r}
+summary(coral_brm)
+ 
+# trace plots and posterior histograms to check convergence and mixing
+plot(coral_brm)
+```
+
+```{r}
+# Bayesian R^2
+
+bayes_R2(coral_brm)
+```
+
+```{r}
+# posterior predictive distribution on the test set
+post_preds <- posterior_predict(coral_brm, newdata = test_data)
+head(post_preds[, 1:10]) # each row is an MCMC draw, each column is a reef site
+```
+```{r}
+# compare posterior predictive means to actual bleaching values
+pred_means <- colMeans(post_preds)
+cor(pred_means, test_data$Percent_Bleaching)
+plot(pred_means, test_data$Percent_Bleaching,
+     xlab = "Posterior Predictive Mean", ylab = "Actual Percent Bleaching",
+     main = "Posterior Predictive Means vs. Actual Bleaching")
+abline(0, 1, col = 'red', lwd = 2)
+```
+```{r}
+# RMSE
+rmse <- sqrt(mean((pred_means - test_data$Percent_Bleaching)^2))
+rmse
+```
+
+```{r}
+# conditional effects: marginal effect of each stressor holding all others at their mean
+library(ggplot2)
+plot(conditional_effects(coral_brm, "TSA"))[[1]]
+plot(conditional_effects(coral_brm, "Turbidity"))[[1]]
+plot(conditional_effects(coral_brm, "Cyclone_Frequency"))[[1]]
+plot(conditional_effects(coral_brm, "ClimSST"))[[1]]
+```
+
+```{r}
+# posterior predictive distribution for a specific reef site
+# representing a high thermal stress, low turbidity open water site
+new_reef <- data.frame(
+  TSA               = (2.0  - mean(coral_sub$TSA))               / sd(coral_sub$TSA),
+  TSA_DHW           = (5.0  - mean(coral_sub$TSA_DHW))           / sd(coral_sub$TSA_DHW),
+  SSTA              = (1.5  - mean(coral_sub$SSTA))              / sd(coral_sub$SSTA),
+  ClimSST           = (28.0 - mean(coral_sub$ClimSST))           / sd(coral_sub$ClimSST),
+  Windspeed         = (4.0  - mean(coral_sub$Windspeed))         / sd(coral_sub$Windspeed),
+  Turbidity         = (0.05 - mean(coral_sub$Turbidity))         / sd(coral_sub$Turbidity),
+  Cyclone_Frequency = (0.1  - mean(coral_sub$Cyclone_Frequency)) / sd(coral_sub$Cyclone_Frequency),
+  Distance_to_Shore = (15.0 - mean(coral_sub$Distance_to_Shore)) / sd(coral_sub$Distance_to_Shore),
+  Depth_m           = (5.0  - mean(coral_sub$Depth_m))           / sd(coral_sub$Depth_m)
+)
+ 
+reef_preds <- posterior_predict(coral_brm, newdata = new_reef)
+hist(reef_preds, breaks = 40,
+     main = "Posterior Predictive Distribution - High Thermal Stress Site",
+     xlab = "Predicted Percent Bleaching")
+abline(v = mean(reef_preds), col = 'red', lwd = 2, lty = 2)
+mean(reef_preds)
+# 95% credible interval for this site's predicted bleaching
+quantile(reef_preds, c(0.025, 0.975))
+```
+
