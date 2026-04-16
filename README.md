@@ -47,5 +47,5 @@ van Woesik, R., & Burkepile, D. (2022). BCO-DMO. https://doi.org/10.26008/1912/b
 
 ## Authors
 
-- Melina — MLP implementation (Python)
-- [Partner] — Bayesian Linear Regression (R)
+- Melina Yang - MLP implementation (Python)
+- Arshia Mathur - Bayesian Linear Regression (R)
