@@ -1,13 +1,51 @@
-# Predicting and Understanding Coral Reef Bleaching Using Environmental Drivers
+# Coral Reef Bleaching Prediction
 
-By Melina Yang and Arshia Mathur
-
-
+**DS 4420 - Machine Learning and Data Mining 2 | Spring 2026**
 
 ## Overview
 
-This project investigates coral reef bleaching prediction using two machine learning approaches. First, a multilayer perceptron (MLP) will be applied to classify whether a reef experiences bleaching based on environmental conditions at the time of survey, including sea surface temperature anomalies, turbidity, cyclone frequency, and degree heating weeks. Then, a Bayesian linear regression model will be implemented to quantify which environmental stressors drive bleaching outcomes, with credible intervals on each predictor.
+This project investigates the environmental drivers of global coral reef bleaching using two machine learning approaches:
 
+1. **Multilayer Perceptron (Python)** — predicts the presence or absence of bleaching from environmental conditions
+2. **Bayesian Linear Regression (R)** — identifies which environmental stressors most drive bleaching outcomes with uncertainty estimates
+
+Together the models provide both a predictive risk assessment tool and an inference framework to support coral reef conservation planning.
 
 ## Dataset
-https://www.bco-dmo.org/dataset/773466#data-files
+
+**Bleaching and Environmental Data for Global Coral Reef Sites (1980–2020)**
+van Woesik, R., & Burkepile, D. (2022). BCO-DMO. https://doi.org/10.26008/1912/bco-dmo.773466.2
+
+- 39,422 complete observations after preprocessing
+- 62 original columns, 9 features used for modeling
+- Binary target: `Bleaching_YN` (1 = any bleaching present, 0 = no bleaching)
+
+## Features
+
+| Feature | Description |
+|---|---|
+| TSA | Thermal Stress Anomaly at time of survey |
+| TSA_DHW | Accumulated thermal stress over 12 weeks |
+| SSTA | Sea Surface Temperature Anomaly |
+| ClimSST | Climatological baseline sea surface temperature |
+| Windspeed | Surface wind speed |
+| Turbidity | Water clarity (light penetration) |
+| Cyclone_Frequency | Regional cyclone occurrence rate |
+| Distance_to_Shore | Distance from reef to nearest coastline |
+| Depth_m | Reef survey depth in meters |
+
+## Results
+
+### MLP
+- Test Accuracy: **76.8%**
+- ROC-AUC: **0.856**
+- Bleaching Recall: **0.78** | No Bleaching Recall: **0.77**
+- Most important feature: **Turbidity** (permutation importance)
+
+### Bayesian Linear Regression
+- *[To be updated]*
+
+## Authors
+
+- Melina — MLP implementation (Python)
+- [Partner] — Bayesian Linear Regression (R)
