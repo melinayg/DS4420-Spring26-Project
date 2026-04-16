@@ -42,10 +42,14 @@ van Woesik, R., & Burkepile, D. (2022). BCO-DMO. https://doi.org/10.26008/1912/b
 - Bleaching Recall: **0.78** | No Bleaching Recall: **0.77**
 - Most important feature: **Turbidity** (permutation importance)
 
-### Bayesian Linear Regression
-- *[To be updated]*
+### Bayesian Beta Regression
+- Bayesian R²: **~0.04**
+- Strongest predictor: **TSA_DHW** (β = 0.16, 95% CI: [0.13, 0.20])
+- Depth, Cyclone Frequency, and Windspeed all had **credible intervals above zero**
+- Turbidity showed a **slight protective effect** (β = −0.01)
+- Full convergence across all chains: **R̂ = 1.00**
 
 ## Authors
 
 - Melina Yang - MLP implementation (Python)
-- Arshia Mathur - Bayesian Linear Regression (R)
+- Arshia Mathur - Bayesian Beta Regression (R)
